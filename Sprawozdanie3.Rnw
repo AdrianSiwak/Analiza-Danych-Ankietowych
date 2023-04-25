@@ -1,0 +1,465 @@
+\documentclass[12pt, a4paper]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% dodatkowe pakiety LaTeX'a
+\usepackage[OT4]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+\usepackage{ tipa }
+\usepackage{ amsmath }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<<ustawienia_globalne, echo=FALSE,message = FALSE, warning=FALSE>>=
+library(knitr)
+library(xtable) #pakiet do tworzenia tabel w formacie LaTeX'a
+
+#Lista 10
+library(stats)# do mcnemary
+library(exact2x2) #Do testu dokładnego 
+#Lista 11
+library(gnm)
+
+opts_chunk$set(fig.path='figure/', fig.align='center', fig.pos='H',fig.width=5, fig.height=4)
+# UWAGA: w razie potrzeby można zmieniać te ustawienia w danym chunk'u!
+@
+
+\begin{document}
+
+	\title{Sprawozdanie nr 3}
+	\author{Michał Brodacki \\ nr albumu 262240 \\ Adrian Siwak \\  nr albumu 242084}
+	\maketitle
+	\tableofcontents
+
+\setcounter{section}{-1}
+\section{Krótki opis zagadnienia:}
+\subsection{Informacje o badanch danych:}
+Będziemy korzystać z danych o:
+\begin{itemize}
+\item Porównanie wyników dwóch kolokwiów w pewnej grupie studentów:
+<<tabela1, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m1 <- matrix(c(30,46,24,36), nrow = 2, byrow = TRUE) 
+dimnames(m1) <- list(c("Negatywny","Pozytywny"),c("Negatywny", "Pozytywny"))
+print(xtable(m1), table.placement = 'H')
+@
+\item Tabela reakcji po godzinie od przyjęcia dwóch różnych leków przeciwbólowych
+<<tabela2, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m2 <- matrix(c(1,5,2,4), nrow = 2, byrow = TRUE) 
+dimnames(m2) <- list(c("Negatywna","Pozytywna"),c("Negatywna", "Pozytywna"))
+print(xtable(m2), table.placement = 'H')
+@
+\item Tabela zawierająca dane na temat oceny pracy rządu przez społeczeństwo, które było zadane w dwóch badanych okresach tej samej grupie respondentów pewnej populecja 
+<<tabela3, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m3 <- matrix(c(5,2,1,0,0,6,3,2,2,0,1,4,5,5,2,0,10,15,18,5,1,2,5,3,2), nrow = 5, byrow = TRUE) 
+dimnames(m3) <- list(c("-2","-1","0","1","2"),c("-2","-1","0","1","2"))
+print(xtable(m3), table.placement = 'H')
+@
+gdzie odpowiedzi są kodowane w następujący sposób: $-2$ \pauza zdecydowanie źle, $-1$ \pauza raczej źle, $0$ \pauza nie mam zdania, $1$ \pauza raczej dobrze, $2$ \pauza zdecydowanie dobrze.
+\item Tabela z wynikami ankiety, która zawierała trzy pytania, które dotyczyły jakości snu (odpowiedź $1$ oznaczała, że student sypia dobrze, $0$, że źle), czy regularnie biega ($1$ \pauza tak, $0$ \pauza nie) oraz czy posiada psa ($1$ \pauza tak, $0$ \pauza nie).
+<<ankieta, echo=TRUE,eval=TRUE>>=
+ankieta <- read.csv(file = "Ankieta.csv", header = TRUE, sep = ";")
+
+head(ankieta)
+@
+\end{itemize}
+
+\subsection{Teoretyczny opis narzedzi uzywanych przy analizie oraz waznych
+terminów teoretycznych}
+\begin{itemize}
+\item Test Bowkera  (funkcja mcnemary dla symetri) \pauza jest testem dla sprawdzenia symetrii danych. Oparty jest na statystyce testowej Pearsona $\chi^2$
+\begin{enumerate}
+\item Liczba stopni swobody jest równa: $$ r = \frac{I(I-1)}{2} $$
+\item Wartość poziomu krytycznego wyznaczamy ze wzoru: $$p = 1 - F_{\chi^2(r)}(x^2) $$
+\end{enumerate}
+\item Test ilorazu wiarygodności dla symetrii \pauza przy weryfikacji hipotezy o symetrii statystyka $G^2$ jest postaci:
+$$ G^2 = 2 \sum_{i=1}^{I}\sum_{j=1}^{I} Y_{ij} \ln(Y_{ij}/n \hat{p}_{ij}) $$ 
+gdzie $\hat{p}_{ij}, i,j \in \{1,2, \ldots , I\}$ są estymatorami najwyższej wiarygodności parametrów $p_{ij}$ przy założeniu symetrii, czyli $$  \hat{p}_{ij} = \frac{Y_{ij} + Y_{ji}}{2n}, \quad i,j = 1, \ldots , I $$
+Wartość poziomu krytycznego w teście Ilorazu Wiarygodności wyznaczamy ze wzoru $$ p = 1 - F_{\chi^2(r)}(g^2)$$ gidze $F_{\chi^2(r)}$ jest dystrybuantą rozkładu $\chi^2$ z $r = I(I-1)/2$ stopniami swobody, a $g^2$ jest wartością statystyki $G^2$
+\item Moc testu \pauza prawdopodobieństwo wykrycia różnicy między dwoma populacjami, gdy rzeczywiście istnieje ta różnica. Im wyższa moc testu, tym bardziej prawdopodobne jest, że test wykryje różnicę, gdy ona faktycznie istnieje.
+\item Test ilorazu wiarygodności dla quasi-symetrii \pauza modelem quasi-symetrii dla danych powtarzanych jednokrotnie nazywamy model, w ktrórym $$ p_{ij} = \alpha_i \beta_j \gamma_{ij} $$ gdzie $ \gamma_{ij} = \gamma_{ji} $ dla każdego $i<j$ gdzie $i,j = \{1,\ldots, I\}$ oraz wszystkie parametry są dodatnie. Model quasi-symetrii nie pociąga za sobą jednorodności rozkładów brzegowych (w przeciwieństwie do modelu symetrii). Liczba stopni swobody granicznego rozkładu $\chi^2$ tych statystyk testowych wynosi $$ r = \frac{(I-1)(I-2)}{2} $$
+\item Model jednorodności rozkładów brzegowych \pauza rozkład $\{p_{ij}: i,j = 1, \ldots , I \} $ podlega modelowi jednorodności rozkładów brzegowych wtedy i tylko wtedy, gdy $$ p_{i+} = p_{+i}, \quad \forall_{i = 1, \dots, I} $$
+\item Model log-liniowy \pauza rodzaj modelu regresji, który jest szczególnie przydatny do klasyfikacji binarnej.
+\item Model log-liniowy hierarchicznie uporządkowany \pauza model jest uporządkowany, jeżeli w tym modelu zerowanie danej interakcji niższego rzędu, pociąga za sobą zerowanie interakcji wyższego rzędu.
+\end{itemize}
+\section{Lista 10 \pauza część pierwsza}
+\subsection{Zadanie 1}
+Przyjmując, że poziom trudności zadań na pierwszym i drugim kolokwium był taki sam, na podstawie danych:
+<<L10_zad1, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(xtable(m1), table.placement = 'H')
+@
+zweryfikujemy na poziomie istotności $0.05$ hipotezę, że studenci byli tak samo przygotowani do obu kolokwiów:
+<<L10_zad1_2, echo=TRUE,eval=TRUE>>=
+mcnemar.test(m1, correct = FALSE)$p.value
+mcnemar.test(m1, correct = TRUE)$p.value
+@
+Widzimy, że na podstawie testu chi-kwadrat Mcnemar'y z oraz bez poprawki na ciągłość, możemy odrzucić hipotezę zerową na poziomie istotności $0.05$, więc studenci nie byli tak samo przygotowani na oba kolokwia.
+\subsection{Zadanie 2}
+Na podstawie danych dotyczących reakcji po godzinie od przyjęcia dwóch różnych leków przeciwbólowych stosowanych w migrenie:
+<<L10_zad2, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(xtable(m2), table.placement = 'H')
+@
+sprawdzimy hipotezę, że leki te są jednakowo skuteczne korzystając z testu
+\begin{itemize}
+\item McNemary'ego z poprawką na ciągłość
+<<L10_zad2_2, echo=TRUE,eval=TRUE>>=
+mcnemar.test(m2, correct = TRUE)$p.value
+@
+\item dokładnego
+<<L10_zad2_3, echo=TRUE,eval=TRUE>>=
+pvalue <- function(dane){
+  if (dane[1,2] < (dane[1,2]+dane[2,1])/2) {
+    list = c()
+    for (k in 1:dane[1,2]) {
+      new_el = choose(dane[1,2] + dane[2,1],k)*((1/2)^k)*
+        ((1/2)^(dane[1,2]+dane[2,1] - k))
+      list = append(list, new_el)
+    }
+    result = 2*sum(list)
+  } else if ( dane[1,2] > (dane[1,2]+dane[2,1])/2) {
+    list = c()
+    for (k in dane[1,2]:(dane[1,2]+dane[2,1])) {
+      new_el = choose( dane[1,2] + dane[2,1],k)*
+        ((1/2)^k)*((1/2)^(dane[1,2]+dane[2,1] - k))
+      list = append(list, new_el)
+    }
+    result = 2*sum(list)
+  } else {
+    result = 1
+  }
+  result
+}
+pvalue(m2)
+mcnemar.exact(m2)$p.value
+@
+widać, że wynik nowej funkcji jest taki sam, jak funkcji wbudowanej więc jest ona napisana poprawnie.
+\end{itemize}
+Zatem na podstawie obu testów, na poziomie istotności $0.05$ możemy przyjąć hipotezę zerową, czyli oba leki są tak samo skuteczne. 
+\subsection{Zadanie 3}
+Przeprowadzimy symulację, w celu porównania mocy testu $Z$ i testu $Z_0$:
+<<L10_zad3, echo=TRUE,eval=TRUE, fig.height=5,fig.wight=7>>=
+TestZ<-function(matrix){
+  m=matrix/sum(matrix)
+  sigma=(sum(m[1,])*(1-sum(m[1,]))+sum(m[,1])*(1-sum(m[,1]))-
+           2*(m[1,1]*m[2,2]-m[1,2]*m[2,1]))/sum(matrix)
+  D=sum(m[1,])-sum(m[,1])
+  Z=D/sqrt(sigma)
+  2*(1-pnorm(abs(Z)))
+}
+#######################################################
+TestZ0<-function(matrix){
+  Z0=(matrix[1,2]-matrix[2,1])/(sqrt(matrix[1,2]+matrix[2,1]))
+  2*(1-pnorm(abs(Z0)))
+}
+
+####################################################
+#funkcja pomocnicza
+wyniki<-function(p2){
+m=1000
+p1<-0.5
+
+
+X<-sample(c(0,1),n,replace=TRUE,prob=c(1-p1,p1))
+Y<-sample(c(0,1),n,replace=TRUE,prob=c(1-p2,p2))
+
+X<-factor(X,levels=c("0","1"))
+Y<-factor(Y,levels=c("0","1"))
+
+dane<-ftable(X,Y)
+}
+############################################################
+
+n=100
+p2_vec=seq(0.01,0.99,0.01)
+alpha=0.05
+moc1=c()
+moc2=c()
+
+for (p in p2_vec){
+  
+  M=1000
+  res1=0
+  res2=0
+  
+  for(i in 1:M){
+    matrix<-wyniki(p)
+    
+    test1<-TestZ(matrix)
+    res1=res1+(test1<alpha)
+    
+    test2<-TestZ0(matrix)
+    res2=res2+(test2<alpha)
+    
+  }
+  
+  moc1=append(moc1,res1/M)
+  moc2=append(moc2,res2/M)
+  
+}
+
+
+colors=c("blue","red")
+shapes<-c(1,2)
+plot(p2_vec,moc1,pch=1,cex = 2/3,main="porównanie mocy testów",
+     xlab="p",ylab="moc testu",col="blue")
+points(p2_vec,moc2,pch=2,cex = 2/3,col="red")
+legend("bottomleft", inset=.02, title="testy",
+       c("Z","Z0"), pch=shapes, horiz=FALSE, cex=1,col=colors)
+
+@
+Widzimy, że test $Z$ ma większą moc niż test $Z_0$, czyli jest skuteczniejszy.
+\section{Lista 11 \pauza część druga}
+\subsection{Zadanie 1}
+Korzystając z testu Bowkera i testu Ilorazu Wiarygodności, na poziomie istotności $0.05$ zweryfikujemy hipotezę, że dane w tabeli
+<<L11_zad1_tabela, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(xtable(m3), table.placement = 'H')
+@
+\begin{itemize}
+\item podlegają modelowi symetrii
+<<L11_a, echo=TRUE,eval=TRUE>>=
+mcnemar.test(m3,correct=FALSE)$p.value
+
+mcnemar.test(m3,correct=TRUE)$p.value
+@
+Test Bowkera nie działa, przez to, że w tabeli występują zera 
+(dzielenie przez zero w statystyce testowej).
+<<L11_a_2, echo=TRUE,eval=TRUE>>=
+count<-c(5,2,1,0,0,6,3,2,2,0,1,4,5,5,2,0,10,15,18,5,1,2,5,3,2)
+Ocena1<-gl(5,5,labels=c("-2","-1","0","1","2"))
+Ocena2<-gl(5,1,labels=c("-2","-1","0","1","2"))
+DaneM3<-data.frame(Ocena1,Ocena2,count)
+symmetry <- glm(count ~ Symm(Ocena1, Ocena2), data=DaneM3, family = poisson)
+summary(symmetry)
+
+x = symmetry$deviance
+r=nrow(m3)*(nrow(m3)-1)/2
+(p.value=1-pchisq(x,r)) 
+@
+zatem na poziomie istotności $\alpha = 0.05$ możemy odrzucić hipotezę zerową, z czego wynika, że tabela nie jest symetryczna.
+
+\item podlegają modelowi quasi-symetrii
+<<L11_b, echo=TRUE,eval=TRUE>>=
+quasi.symm <- glm(count ~ Ocena1+Ocena2 + Symm(Ocena1,Ocena2),data=DaneM3, family =poisson)
+summary(quasi.symm)
+x=quasi.symm$deviance
+r=(nrow(m3)-1)*(nrow(m3)-2)/2
+(p.value=1-pchisq(x,r))
+@
+na poziomie istotnośc $\alpha = 0.05$ nie mamy podstaw do odrzucenia hipotezy zerowej, zatem tabela jest quasi-symetryczna.
+\end{itemize}
+
+\subsection{Zadanie 2}
+Zweryfikujemy hipotezę, że ocena pracy rządu w dwóch badanych okresach w badanej populacji nie uległa zmianie:
+Tabela jest rozmiaru większego niż $2\times 2$ więc nie możemy powiedzieć nic o jednorodności na podstawie informacji o symetrii uzyskanej powyżej (dane nie są symetryczne).
+<<L11_zad2, echo=TRUE,eval=TRUE>>=
+comparison <- anova(symmetry, quasi.symm)
+(p.value=1-pchisq(comparison$Deviance[2],comparison$Df[2]))
+@
+Zatem na poziomie istotności $\alpha = 0.05$ możemy odrzucić hipotezę zerową. Czyli na podstawie wyniku testu jednorodności, możemy stwierdzić, że ocena pracy rządu uległa zmianie między okresami.
+
+\section{Lista 12 \pauza część trzecia}
+\subsection{Zadanie 1}
+W przypadku danych:
+<<ankieta_zad1_L12, echo=TRUE,eval=TRUE>>=
+head(ankieta)
+@
+gdzie jako $1$ w modelu będziemy traktować zmienną \textit{Sen}, jako $2$ \pauza \textit{Bieganie}, natomiast jako $3$ \pauza \textit{Pies}. Podamy interpretację następujących modeli log-liniowych:
+\begin{itemize}
+\item[(a)][1~3] \pauza odpowiedzi na pytania o sen i o psa są niezależne. Nie wiemy nic na temat odpowiedzi na pytanie o bieganiu;
+\item[(b)][13] \pauza odpowiedzi na pytania o sen i o psa nie są niezależne. Nie wiemy nic na temat odpowiedzi na pytanie o bieganiu;
+\item[(c)][1~2~3] \pauza odpowiedzi na wszystkie pytania trzy są niezależne;
+\item[(d)][12~3] \pauza odpowiedzi na pytanie o sen i o bieganie nie są niezależne, ale odpowiedź na pytania o sen i beganie nie zależą od odpowiedzi na pytanie o psa;
+\item[(e)][12~13] \pauza odpowiada jedynie warunkowej niezależności biegania i posiadania psa, przy ustalonej odpowiedzi na pytanie na temat snu;
+\item[(f)][1~23] \pauza odpowiedzi na pytanie o bieganie i o psa nie są niezależne, ale odpowiedź na pytania o bieganie i o psa nie zależą od odpowiedzi na pytanie o sen;
+
+\end{itemize}
+\subsection{Zadanie 2}
+Przyjmując model log-liniowy $[12~3]$, na podstawie danych:
+<<ankieta_zad2_L12, echo=TRUE,eval=TRUE>>=
+head(ankieta)
+@
+przygotujmy dane do analizy:
+<<ankieta_zad2_L12_przygotowanie, echo=TRUE,eval=TRUE>>=
+students <- array(data = c(
+    length(which(ankieta$SEN == 1 & ankieta$BIEGANIE == 1 & ankieta$PIES == 1)),
+    length(which(ankieta$SEN == 0 & ankieta$BIEGANIE == 1 & ankieta$PIES == 1)),
+    length(which(ankieta$SEN == 1 & ankieta$BIEGANIE == 0 & ankieta$PIES == 1)),
+    length(which(ankieta$SEN == 0 & ankieta$BIEGANIE == 0 & ankieta$PIES == 1)),
+    length(which(ankieta$SEN == 1 & ankieta$BIEGANIE == 1 & ankieta$PIES == 0)),
+    length(which(ankieta$SEN == 0 & ankieta$BIEGANIE == 1 & ankieta$PIES == 0)),
+    length(which(ankieta$SEN == 1 & ankieta$BIEGANIE == 0 & ankieta$PIES == 0)),
+    length(which(ankieta$SEN == 0 & ankieta$BIEGANIE == 0 & ankieta$PIES == 0))), 
+  dim = c(2,2,2), 
+  dimnames = list("Sen" = c("tak","nie"),
+                  "Bieganie" = c("tak","nie"),
+                  "Pies" = c("tak","nie")))
+students
+@
+oraz stwórzmy model log-liniowy :
+<<ankieta_zad2_L12_model, echo=TRUE,eval=TRUE>>=
+(ftable(students, row.vars = c("Pies","Bieganie")))
+
+addmargins(students)
+
+prop.table(students, margin = c(1,3))
+
+students.df <- as.data.frame(as.table(students))
+
+mod1 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie, 
+            data = students.df, family = poisson)
+summary(mod1)
+fitted1 <- cbind(mod1$data, fitted(mod1))
+@
+oszacujemy prawdopodobieństwo:
+\begin{itemize}
+\item[(a)] dobrej jakości snu studenta, który regularnie biega
+\begin{itemize}
+\item teoretycznie
+<<L12_zad2_Ta, echo=TRUE,eval=TRUE>>=
+(aT = length(which(ankieta$SEN == 1 & ankieta$BIEGANIE == 1))/
+   length(which(ankieta$BIEGANIE == 1)))
+@
+\item za pomocą modelu log-liniowego
+<<L11_zad2_LLa, echo=TRUE,eval=TRUE>>=
+bieganieV = c()
+for (i in which(fitted1$Bieganie == "tak")){
+  bieganieV = append(bieganieV, fitted1$`fitted(mod1)`[i])
+}
+bieganieV
+(sum(bieganieV))
+
+SenbieganieV = c()
+for (i in which(fitted1$Bieganie == "tak" & fitted1$Sen == "tak")){
+  SenbieganieV = append(SenbieganieV, fitted1$`fitted(mod1)`[i])
+}
+SenbieganieV
+(sum(SenbieganieV))
+(sum(SenbieganieV))/(sum(bieganieV))
+@
+Dla podpunktu (a) prawdopodobieństwa się zgadzają, model szacuje poprawnie.
+\end{itemize}
+\item[(b)] tego, że student biega regularnie, gdy posiada psa
+\begin{itemize}
+\item teoretycznie
+<<L11_zad2_Tb, echo=TRUE,eval=TRUE>>=
+(bT = length(which(ankieta$BIEGANIE == 1 & ankieta$PIES == 1))/
+   length(which(ankieta$PIES == 1)))
+@
+\item za pomocą modelu log-liniowego
+<<L11_zad2_LLb, echo=TRUE,eval=TRUE>>=
+PiesbieganieV = c()
+for (i in which(fitted1$Bieganie == "tak" & fitted1$Pies == "tak")){
+  PiesbieganieV = append(PiesbieganieV, fitted1$`fitted(mod1)`[i])
+}
+PiesbieganieV 
+sum(PiesbieganieV)
+
+PiesV = c()
+for (i in which(fitted1$Pies == "tak")){
+  PiesV = append(PiesV, fitted1$`fitted(mod1)`[i])
+}
+PiesV
+(sum(PiesV))
+
+sum(PiesbieganieV)/(sum(PiesV))
+@
+dla podpunktu (b) ten model nie szacuje poprawnie 
+\end{itemize}
+\end{itemize}
+oraz sprawdzimy jakie są oszacowania dla modelu $[12~23]$:
+<<L11_zad2_LL[12-23]model, echo=TRUE,eval=TRUE>>=
+mod2 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie + Bieganie*Pies , 
+            data = students.df, family = poisson)
+
+summary(mod2)
+fitted2 <- cbind(mod2$data, fitted(mod2))
+@
+\begin{itemize}
+\item[(a)] dobrej jakości snu studenta, który regularnie biega
+<<L11_zad2_LL[12-23]a, echo=TRUE,eval=TRUE>>=
+bieganieV = c()
+for (i in which(fitted2$Bieganie == "tak")){
+  bieganieV = append(bieganieV, fitted2$`fitted(mod2)`[i])
+}
+bieganieV
+(sum(bieganieV))
+
+SenbieganieV = c()
+for (i in which(fitted2$Bieganie == "tak" & fitted2$Sen == "tak")){
+  SenbieganieV = append(SenbieganieV, fitted2$`fitted(mod2)`[i])
+}
+SenbieganieV
+(sum(SenbieganieV))
+(sum(SenbieganieV))/(sum(bieganieV))
+@
+\item[(b)] tego, że student biega regularnie, gdy posiada psa
+<<L11_zad2_LL[12-23]b, echo=TRUE,eval=TRUE>>=
+PiesbieganieV = c()
+for (i in which(fitted2$Bieganie == "tak" & fitted2$Pies == "tak")){
+  PiesbieganieV = append(PiesbieganieV, fitted2$`fitted(mod2)`[i])
+}
+PiesbieganieV 
+sum(PiesbieganieV)
+
+PiesV = c()
+for (i in which(fitted2$Pies == "tak")){
+  PiesV = append(PiesV, fitted2$`fitted(mod2)`[i])
+}
+PiesV
+(sum(PiesV))
+
+sum(PiesbieganieV)/(sum(PiesV))
+@
+Widzimy, że model szacuje poprawnie wartości zarówno dla podpunktu (a) jak i dla podpunktu (b).
+\end{itemize}
+Czyli model $[12~23]$ lepiej szacuje prawdopodobieństwo niż model $[12~3]$ 
+\subsection{Zadanie 3}
+Na podstawie danych:
+<<ankieta_zad3_L12, echo=TRUE,eval=TRUE>>=
+head(ankieta)
+@
+zweryfikujemy następujące hipotezy:
+\begin{itemize}
+\item[(a)] zmienne losowe \textit{Sen}, \textit{Bieganie} i \textit{Pies} są wzajemnie niezależne:
+<<L11_zad3_a, echo=TRUE,eval=TRUE>>=
+#a
+mod1 <- glm(Freq ~ Sen+Bieganie + Pies,
+            data = students.df, family = poisson)
+1-pchisq(deviance(mod1), df = df.residual(mod1))
+mod2 <- glm(Freq ~ Sen+Bieganie + Pies + Sen*Bieganie,
+            data = students.df, family = poisson)
+test <- anova(mod1,mod2)
+1-pchisq(test$Deviance[2], df = test$Df[2])
+@
+Na poziomie istotności $\alpha = 0.05$ mamy podstawy do odrzucenia hipotezy o niezależności. 
+\item[(b)] zmienna losowa \textit{Pies} jest niezależna od pary zmiennych \textit{Sen} i \textit{Bieganie}:
+<<L11_zad3_b, echo=TRUE,eval=TRUE>>=
+mod1 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie,
+            data = students.df, family = poisson)
+
+1-pchisq(deviance(mod1), df = df.residual(mod1))
+
+mod2 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie + Bieganie*Pies,
+            data = students.df, family = poisson)
+
+test <- anova(mod1,mod2)
+
+1-pchisq(test$Deviance[2], df = test$Df[2])
+@
+Na poziomie istotności $\alpha = 0.05$ mamy podstawy, żeby odrzucić hipotezę o niezależności.
+\item[(c)] zmienna losowa \textit{Sen} jest niezależna od zmiennej \textit{Pies}, przy ustalonej zmiennej \textit{Bieganie}:
+<<L11_zad3_c, echo=TRUE,eval=TRUE>>=
+mod1 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie + Pies*Bieganie,
+            data = students.df, family = poisson)
+
+1-pchisq(deviance(mod1), df = df.residual(mod1))
+mod2 <- glm(Freq ~ Sen + Bieganie + Pies + Sen*Bieganie + Pies*Bieganie + Sen*Pies,
+            data = students.df, family = poisson)
+test <- anova(mod1,mod2)
+
+1-pchisq(test$Deviance[2], df = test$Df[2])
+@
+Na poziomie istotności $\alpha = 0.05$ nie mamy podstaw do odrzucenia hipotezy zerowej o niezależności.
+\end{itemize}
+
+\end{document}

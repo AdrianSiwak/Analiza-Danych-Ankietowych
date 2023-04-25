@@ -1,0 +1,522 @@
+\documentclass[12pt, a4paper]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% dodatkowe pakiety LaTeX'a
+\usepackage[OT4]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ustawienia globalne, echo odpowiada za wyświetlanie kodu, natomiast eval wyników!!!
+<<ustawienia_globalne, echo=FALSE,message = FALSE, warning=FALSE>>=
+library(knitr)
+library(xtable) #pakiet do tworzenia tabel w formacie LaTeX'a
+
+library(dplyr)
+library(summarytools)
+#Lista nr1
+library(vcdExtra)
+library(tidyverse)
+library(ggplot2)
+library(hrbrthemes)
+library(RColorBrewer)
+#Lista nr2
+library(stats)
+#lista nr3 
+library(DataExplorer)
+library(binom)
+library(pracma)
+library(reshape2)
+
+options(xtable.floating = TRUE)
+options(xtable.timestamp = "")
+
+opts_chunk$set(fig.path='figure/', fig.align='center', fig.pos='H',fig.width=5, fig.height=4)
+# UWAGA: w razie potrzeby można zmieniać te ustawienia w danym chunk'u!
+@
+\renewcommand{\labelenumii}{\theenumii}
+\renewcommand{\theenumii}{\theenumi.\arabic{enumii}.} %żeby dobrze numerowało
+
+\begin{document}
+
+	\title{Sprawozdanie nr.1}
+	\author{Michał Brodacki \\ nr albumu 262240 \\ Adrian Siwak \\  nr albumu 242084}
+	\maketitle
+	\tableofcontents
+	
+	\section{Krótki opis zagadnienia}
+	\subsection{Informacje o badanych danych}
+	\begin{itemize}
+	\item Przy zadaniach z listy nr $1$ koczystamy z danych z pliku \textit{Detergent.csv} z pakietu \textit{vcdExtra} zawierającegp informacje z badań ankietowych
+$1008$ konsumentów, dotyczące preferencji związanych z praniem. Pytania dotyczyły tem-
+peratury prania (zmienna \textit{Temperature}: High, Low), wcześniejszego użycia detergentu
+marki $M$ (zmienna \textit{M User: Yes, No}), miękkości użytej wody do prania (zmienna \textit{Water
+softness}: Soft, Medium, Hard), wyrażonej preferencji dla marki $X$ lub marki (zmienna
+\textit{Preference}: Brand $X$, Brand $M$)
+\item Tablica z danymi zebranymi od $200$ losowo wybranych klientów (w różnym wieku) kilku (losowo wybranych) aptek, na temat przyjmowanego leku przeciwbólowego. %Mogę tu wstawić tą tablicę, albo wyciętą albo przepisać, czego mi się trochę nie chce robić xd
+	\end{itemize}
+	\subsection{Teoretyczny opis narzędzi używanych przy analizie oraz ważnych terminów teoretycznych}
+	Dla przejżystego wyświetlania wyników analiz posługiwaliśmy się:
+	\begin{itemize}
+	\item Tabelami wielodzielczymi
+	\item Tablicami liczności
+	\item Wykresami kołowymi
+	\item Wykresami słupkowymi
+	\item Wykresami mozaikowymi
+	\end{itemize}
+	Podstawą teoretyczną analiz jest wiedza o tym, co to:
+	\begin{itemize}
+	\item Rozkładzie dwumianowym \pauza dyskretny rozkład prawdopodobieństwa opisujący liczbę sukcesów $k$ w ciągu $N$ niezależnych prób, z których każda ma stałe prawdopodobieństwo sukcesu równe $p$.
+	
+	\item Rozkładzie wielomianowym \pauza Jest uogólnieniem rozkładu dwumianowego. Jest wektorem nieznanyc prawdopodobieństw $p_i$, że losowo wybrana osoba z danej populacji wybierze $i$-tą odpowiedź na pytanie ankietowe.
+	
+	\item Przedziale ufności Cloppera-Pearsona  przedział opraty o rozkład dwumianowy $X ~ B(n,p_0)$ gdzie: 
+	$$ I_{\alpha} := \{p: x \in A_{\alpha}(p) \} $$
+	
+	\item Przedziale ufności Walda \pauza asymptotyczny punktowo przedział $[T_L^A , T_U^A]$, taki że $$ T_L^A = \overline{X} - c_{\alpha} [\overline{X}(1-\overline{X})]^{1/2} $$
+	$$ T^A_U = \overline{X} + c_{\alpha} [\overline{X} (1-\overline{X})]^{1/2} $$
+	gdzie $\alpha$ związane jest z przyjętym poziomem ufności $1 - \alpha$
+	\end{itemize}
+	\section{Lista nr 1}
+	\subsection{Zadanie 1}
+	Tablice liczności dla zmiennych \textit{Temperature} oraz \textit{Preference} biorąc pod uwagę wszystkie dane prezentuje się następująco 
+
+<<Tablice_liczności1, results='asis', echo=TRUE>>=
+Detergentdf <- data.frame(Detergent)
+all.temperature<-Detergentdf%>%
+  group_by(Temperature)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+all.prefrence<-Detergentdf%>%
+  group_by(Preference)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+@
+<<Tablice_liczności2, results='asis', echo=FALSE>>=
+
+  print(all.temperature,table.placement="H")
+  print(all.prefrence,table.placement="H")
+ 
+@
+
+
+W zależności od zmiennej \textit{WaterSoftness} dostajemy:
+\begin{itemize}
+\item \textit{WaterSoftness} $=$ Soft
+
+<<Tablice_liczności_soft, results='asis', echo=TRUE,eval=TRUE, warning=FALSE>>=
+#Analogicznie dla pozostałych Water Softness
+soft.temperature<-Detergentdf%>%
+  filter(Water_softness=="Soft")%>%
+  group_by(Temperature)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+soft.preference<-Detergentdf%>%
+  filter(Water_softness=="Soft")%>%
+  group_by(Preference)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+@
+<<Tablice_liczności_soft2, results='asis', echo=FALSE,eval=TRUE, warning=FALSE>>=
+
+  print(soft.temperature,table.placement="H")
+  print(soft.preference,table.placement="H")
+
+@
+
+\item \textit{WaterSoftness} $=$ Medium
+<<Tablice_licznośc_medium, results='asis', echo=FALSE,eval=TRUE, warning=FALSE>>=
+medium.temperature<-Detergentdf%>%
+  filter(Water_softness=="Medium")%>%
+  group_by(Temperature)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+medium.prefrence<-Detergentdf%>%
+  filter(Water_softness=="Medium")%>%
+  group_by(Preference)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+  print(medium.temperature,table.placement="H")
+  print(medium.prefrence,table.placement="H")
+@
+
+\item \textit{WaterSoftness} $=$ Hard
+
+<<Tablice_liczności_Hard, results='asis', echo=FALSE,eval=TRUE, warning=FALSE>>=
+  
+hard.temperature<-Detergentdf%>%
+  filter(Water_softness=="Hard")%>%
+  group_by(Temperature)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+hard.prefrence<-Detergentdf%>%
+  filter(Water_softness=="Hard")%>%
+  group_by(Preference)%>%
+  summarize(n = sum(Freq))%>%
+  mutate(prop = n / sum(n))%>%
+  xtable()
+
+  print(hard.temperature,table.placement="H")
+  print(hard.prefrence,table.placement="H")
+@
+\end{itemize}
+	\subsection{Zadanie 2}
+	Tabela wielodzielcza dla zmiennych \textit{Temperature} i \textit{Water Softness} wygląda następująco:
+	
+	<<Tablice_wielodzielcze,  results='asis', echo=TRUE,eval=TRUE, warning=FALSE>>=
+  
+tablica.wielodzielcza<-structable(Temperature~Water_softness, Detergent)%>%
+  addmargins()%>%
+  xtable()
+  
+  print(tablica.wielodzielcza,table.placement="H")
+@
+	
+	\subsection{Zadanie 3}
+	Wykresy kołowy i słupkowy dla zmiennej \textit{Water Softness}
+	
+<<Wykresy_waterSoftness, echo=TRUE,results='hide',eval=TRUE, warning=FALSE,fig.width=6, fig.height=5>>=
+
+#Pieplot
+count_soft = Detergentdf%>%
+  filter(Water_softness=="Soft")%>%
+  summarize(n = sum(Freq))
+count_soft[, 1]
+count_medium = Detergentdf%>%
+  filter(Water_softness=="Medium")%>%
+  summarize(sum(Freq))
+count_medium[, 1]
+
+count_hard = Detergentdf%>%
+  filter(Water_softness=="Hard")%>%
+  summarize(n = sum(Freq))
+count_hard[, 1]
+
+x <- c(count_soft[, 1],count_medium[, 1],count_hard[, 1])
+pie(x,labels = c("Soft","Medium","Hard"),
+    main = "Liczność dla zmiennej Water_Softness",col = rainbow(length(x))) 
+
+# Barplot
+water<-Detergentdf %>%
+  group_by(Water_softness) %>%
+  summarize(n = sum(Freq))
+
+coul <- brewer.pal(5, "Set2") 
+barplot(height=water$n, names=water$Water_softness, col=coul )
+
+@
+	\subsection{Zadanie 4}
+	Wykresy mozaikowe odpowiadające rozpatrywanym danym wyglądają następująco:
+	\begin{itemize}
+\item Zmiennych \textit{Preference} i \textit{M User}
+
+<<Wykresy_mosaic1, echo=TRUE,results='hide',eval=TRUE, warning=FALSE,error=FALSE,fig.width=4, fig.height=4>>=
+mosaic(~Preference+M_User,Detergent,shade=TRUE,fig.pos='H',
+       highlighting = "Preference", highlighting_fill = c("lightblue", "pink")) 
+@
+Na na wykresie widzimy że więcej ankietowanych preferuje firmę M.
+\item Zmiennych \textit{Preference} i \textit{Water softness}
+
+<<Wykresy_mosaic2, echo=TRUE,results='hide',eval=TRUE, warning=FALSE,error=FALSE,fig.width=4, fig.height=4>>=
+mosaic(~Preference+Water_softness,Detergent,shade=TRUE,fig.pos='H',
+       highlighting = "Preference", highlighting_fill = c("lightblue", "pink"))
+@
+Na wykresie widzimy że wybór marki jest rozmieszczony równomiernie w zależności od twardości wody.
+\item Zmiennych \textit{Preference} i \textit{Temperature}
+
+<<Wykresy_mosaic3, echo=TRUE,results='hide',eval=TRUE, warning=FALSE,error=FALSE,fig.width=4, fig.height=4>>=
+mosaic(~Preference+Temperature,Detergent,shade=TRUE,fig.pos='H',
+       highlighting = "Preference", highlighting_fill = c("lightblue", "pink"))
+@
+Na wykresie widzimy że większa liczba ankietowanych używa mniejszej temperatury do prania, marka M jest preferowana dotemperatury wysokiej zaś X do niskiej.
+\end{itemize}	
+	\section{Lista nr 2}
+	\subsection{Zadanie 1}
+	Zapoznajemy się z funkcją \textit{sample}:
+<<kod_losowania, echo=TRUE,eval=TRUE, warning=FALSE>>=
+	losowanie<-function(dane,statment){
+	  return(dane[sample(nrow(dane), 0.1*nrow(dane),replace= statment), ])
+	}
+@
+
+\begin{itemize}
+\item Tak wygląda kawałek tabeli:
+
+<<mtcars, echo=TRUE,eval=TRUE, warning=FALSE,results='asis'>>=
+print(xtable(mtcars),table.placement="H")
+@
+\item losujemy ze zwracaniem:
+
+<<mtcars_ze_zw, echo=TRUE,eval=TRUE, warning=FALSE,results='asis'>>=
+print(xtable(losowanie(mtcars,TRUE)),table.placement="H")
+@
+
+\item bez zwracania:
+
+<<mycars_bez_zwracania, echo=TRUE,eval=TRUE, warning=FALSE,results='asis'>>=
+print(xtable(losowanie(mtcars,FALSE)),table.placement="H")
+@
+\end{itemize}
+	\subsection{Zadanie 2}
+	Proponujemy następujący algorytm generowania próbki z rozkłądu dwumianowego:
+\begin{enumerate}
+\item Generujemy $U~U(0,1)$
+\item Sprawdzamy jeśli $U>p$ wpisujemy to $X_i = 1$, jeżeli nie to $X_i = 0$
+\item Powtarzamy kroki $1$ i $2$ $n$ razy
+\item Sumujemy ilość $X_i$ i dzielimy przez liczbę powtórzeń
+\end{enumerate}
+	<<algorytmdwumian, echo=TRUE,eval=TRUE, warning=FALSE>>=
+
+	Bernoulli <- function(n, prob,N) {
+  vector = c()
+  for (i in 1:N) {
+    uniform = runif(n,0,1)
+    vector = append(vector,sum(uniform > prob))
+  }
+  vector
+}
+@
+
+który jest poprawny, ponieważ wykres dystrybuanty empirycznej pokrywa się z wykresem dystrybuanty teoretycznej:
+
+	<<algorytm_porownanie_z_dystrybuanta, echo=FALSE,eval=TRUE, warning=FALSE,results='hide',fig.width=7, fig.height=6>>=
+#pbinom - dystrybuanta teoretyczna
+k <- seq(0,1000, by = 0.1)
+plot(ecdf(Bernoulli(100,0.5,1000)),main="Dystrybuanta empiryczna i teoretyczna")
+lines(k,pbinom(k,100,0.5))
+@
+
+	\subsection{Zadanie 3}
+	Natomiast proponowany przez nas algorytm wygląda następująco:
+	\begin{enumerate}
+	\item Deklarujemy wektor długości $k \to X$
+	\item Losujemy, gdzie dopisujemy jedynkę
+	\item Wstawiamy $X[I]= X[I] +1$
+	\item Powtórzymy 2. i 3. n razy
+	\end{enumerate}
+	oraz jego implementacja wygląta tak:
+<<algorytmwielomianowy, echo=TRUE,eval=TRUE, warning=FALSE>>=
+
+wielomianowy <- function(p, N) {
+  wektor <- rep(0, length(p))
+  k = length(p)
+  #prawdopodobieństwo podajemy RĘCZNIE
+  for (i in 1:N) {
+    jeden <- sample(1:k, replace=FALSE,1, prob=p) #losujemy miejsce na jedynkę 
+    X <- rep(c(0), each=k)
+    X.gotowy <- replace(X, jeden, 1)
+    X.gotowy
+    wektor=rbind(wektor, X.gotowy)}
+  wektor=wektor[-1,]
+  return(wektor)}
+
+@
+oraz jest poprawny ponieważ:
+
+<<algorytmwielomianowy_whyTrue, echo=TRUE,eval=TRUE, warning=FALSE,results='hide'>>=
+
+propabilities=c(0.5,0.4,0.1)
+algorytm=c()
+rmultinom=c()
+for (i in 1:1000){
+  q=wielomianowy(propabilities,3)
+  Q=colSums(q)
+  p=t(rmultinom(1,3,propabilities))
+  algorytm=append(algorytm,dmultinom(Q,prob =propabilities))
+  rmultinom=append(algorytm,dmultinom(Q,prob=propabilities))
+}
+c1 <- rgb(0,191,255,max = 255, alpha = 50)
+c2 <- rgb(255,255,0, max = 255, alpha = 50)
+hist(algorytm,col= "green")
+hist(rmultinom, col = rgb(1, 0, 0, 0.5),add = TRUE)
+
+legend('topright', c('algorytm', 'rmultinom'), fill=c('green', 'red'))
+@
+Kolory na wykresie czerwony dla multinom i zielony dla naszego algorytmu zmieszały się w całości, czyli oba algorytmy pokrywają się na wykresie, więc nasz algorytm jest poprawny.
+
+	\subsection{Zadanie 4}
+  Proponowane przez nas badanie to "Badanie preferencji klientów punktów gastronomicznych".
+  Celem tego badania jest analiza rynku dla aplikacji pozwalającej zamawiać jedzenie bez stania w kolejce do punktów gastronomicznych. Grupą docelową są osoby często korzystające z punktów gastronomicznych. Dane mogą być zbierane przez ankieterów w godzinach największego obłożenia danych punktów gastronomicznych.
+  Proponowany formularz:
+  \begin{enumerate}
+	\item Jak często korzystasz z usług punktów gastronomicznych?
+	\begin{enumerate}
+	\item Codziennie
+	\item 4-5 razy w tygodniu
+	\item 2-3 razy w tygodniu
+	\item Raz w tygodniu
+	\item Rzadziej niż raz w tygodniu
+	\end{enumerate}
+	\item Z usług gastronomicznych najczęściej korzystam: 
+	\begin{enumerate}
+	\item Z grupą przyjaciół/ znajomych
+	\item Z rodziną
+	\item Sam
+	\item Przy okazji wyjść firmowych
+	\end{enumerate}
+	\item Jak często musisz stać w kolejce do punktów gastronomicznych / długo czekać na obsługę kelnerską? (1-prawie zawsze, 5-nigdy)
+	\begin{enumerate}
+    \item
+    \item
+    \item
+    \item
+    \item
+	\end{enumerate}
+  \item Wybierając bar / restauracje / food court: (wybierz max 3)
+	\begin{enumerate}
+	\item Idę do sprawdzonych miejsc, takich które wcześniej odwiedzałem/odwiedzałam
+  \item Kieruję się opinią znajomych
+  \item Korzystam z usług takich jak Google Maps w celu sprawdzenia opinii / menu
+  \item Lubię sam/sama sprawdzać nowe miejsca w których wczesniej nie byłem
+  \item Sprawdzam Social Media (Facebook/ Instagram) w celu sprawdzenia jak wyglądają dania i samo miejsce
+  \end{enumerate}
+  \item Czy według Ciebie dedykowana do tego aplikacja mobilna, mogłaby ułatwić wybór baru/restauracji?(1-Nie, myślę że taka aplikacja byłaby zbędna,5-Tak, taka aplikacja była by zdecydowanie przydatna)
+  \begin{enumerate}
+  \item
+  \item
+  \item
+  \item
+  \item
+  \end{enumerate}
+  \item Jakie opcje płatności w punktach gastronomicznych wybierasz najczęściej?
+  \begin{enumerate}
+  \item Karta Płatnicza
+  \item Telefon z NFC (Apple Pay/ Google Pay)
+  \item BLIK
+  \item Gotówka
+  \end{enumerate}
+\item Czy opcja płatności przy odbiorze zamówienia jest dla Ciebie ważna?(1-Nie, w ogóle jej nie potrzebuję,5-Jest dla mnie niezbędna)
+  \begin{enumerate}
+  \item
+  \item
+  \item
+  \item
+  \item
+  \end{enumerate}
+  \end{enumerate}
+  
+	\section{Lista nr 3 i 4}
+	
+	\subsection{Zadanie 1}
+	Przeprowadzimy symulację, której celem jest porównanie prawdopodobieństwa pokrycia i długości przedziałów ufności Cloppera-Pearsona.
+	Przeprowadzimy nastpującą symulację:
+	\begin{enumerate}
+	\item wybieramy $n$ oraz $p$
+	\item Generujemy realizację zmiennej losowej z rozkładu bernoulliego o parametrach $(n,p)$
+	\item Wyznaczamy przedział ufności dla $p$ wybraną metodą
+	\item Sprawdzamy czy $p$ mieści się w przedziale ufności
+	\item wyznaczamy długość przedziału
+	\item Powtarzamy $2-5$ $M$ razy
+	\item Wyznaczamy $\%$ pokrycia $= \frac{\#\{  p \in \mbox{przedział}\}  }{M}$ i średnią długość przedziału ufności
+	\end{enumerate}
+<<porownanie_metod_tabela, echo=TRUE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+n = 1000
+M=1000
+p = 1/2
+avg.lenght<-c()
+prop.cover<-c()
+methods<-c("exact","asymptotic","wilson")
+
+
+x <- rbinom(M,n,p) #wektor
+for (i in methods){
+  result<- binom.confint(x,n,methods = i) #Nakładamy przedział ufności
+  #result["mean"]
+  
+  if.in = p > result["lower"] & p < result["upper"] #Sprawdzamy czy p jest w przedziale ufności
+  p.pokrycia = sum(if.in)/M #prawdopodobieństwo pokrycia
+  prop.cover<-append(prop.cover,p.pokrycia)
+  lengt = result["upper"] - result['lower'] #dlugosc przedzialu
+  a.length = sum(lengt)/M #srednia dlugosc przedzialu
+  avg.lenght<-append(avg.lenght,a.length)
+
+}
+df<-data.frame(avg.lenght,prop.cover)
+rownames(df) <- methods
+print(xtable(df,digits=4))
+@
+
+<<porownanie_metod_wykres_od_p, echo=TRUE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+pomocnicza <- function(p){
+  n=1000
+  M=1000
+  x <- rbinom(M,n,p) #wektor
+  methods<-c("exact","asymptotic","wilson")
+  r<-c()
+  for (i in methods){
+    result<- binom.confint(x,n,methods = "exact") #Nakładamy przedział ufności
+    if.in = p > result["lower"] & p < result["upper"] #Sprawdzamy czy p jest w przedziale ufności
+    r<-append(r,(sum(if.in)/M)) #prawdopodobieństwo pokrycia
+ #   r<-append(r,p)
+  }
+  return(append(r,p))
+}
+propabilities=linspace(0.01,1,100)
+P<-sapply(propabilities,pomocnicza)
+df<-data.frame(P)
+rownames(df) <- append(methods,"p")
+df <- as.data.frame(t(df))
+df <- melt(df ,  id.vars = 'p', variable.name = 'metoda')
+ggplot(df,aes(p, value, alpha=metoda))+
+    geom_point() 
+@
+Z wykresu wynika że prawdopodobieństwa pokrycia dla poszczególnych metod nakładają się na siebie.
+	\subsection{Zadanie 2}
+Korzystając z tabeli preferencji $200$ losowo wybranych klientów aptek: 
+	\begin{figure}[H]\centering
+		\includegraphics[width=12cm]{tabela.png}
+	\end{figure}
+	\begin{itemize}
+	\item prawdopodobieństwa stosowania leku ibuprofen (bez względu na grupę wiekową)
+	
+<<a), echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+X <- xtable(binom.confint(50,200),table.placement="H")
+print(X, table.placement = 'H')
+@
+
+\item prawdopodobieństwa stosowania leku ibuprofen przez klienta w wieku do 35
+lat,
+
+<<b), echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+X <- xtable(binom.confint(0,200),table.placement="H")
+print(X, table.placement = 'H')
+@
+
+\item prawdopodobieństwa stosowania leku apap (bez względu na grupę wiekową),
+
+<<c), echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+X <- xtable(binom.confint(44,200),table.placement="H")
+print(X, table.placement = 'H')
+@
+
+\item prawdopodobieństwa stosowania leku apap przez klienta w wieku do 35 lat.
+
+<<d), echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+X <- xtable(binom.confint(22,200),table.placement="H")
+print(X, table.placement = 'H')
+@
+
+\end{itemize}
+Metody 'beyes', 'cloglog', 'logit', 'probit', 'profile' i 'prop.test' dają najlepsze wyniki spośród wszystkich metod ze względu na długość przedziału ufności i sposób obliczania średniej w danych przykładach.
+\end{document}

@@ -1,0 +1,821 @@
+\documentclass[12pt, a4paper]{article}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% dodatkowe pakiety LaTeX'a
+\usepackage[OT4]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+\usepackage{ tipa }
+\usepackage{ amsmath }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<<ustawienia_globalne, echo=FALSE,message = FALSE, warning=FALSE>>=
+library(knitr)
+library(xtable) #pakiet do tworzenia tabel w formacie LaTeX'a
+
+library(dplyr)
+library(summarytools)
+library("ca")
+#lista 5,6,7
+library(binom)
+# lista 8,9
+library(DescTools)
+
+options(xtable.floating = TRUE)
+options(xtable.timestamp = "")
+
+opts_chunk$set(fig.path='figure/', fig.align='center', fig.pos='H',fig.width=5, fig.height=4)
+# UWAGA: w razie potrzeby można zmieniać te ustawienia w danym chunk'u!
+@
+
+\begin{document}
+
+	\title{Sprawozdanie nr 2}
+	\author{Michał Brodacki \\ nr albumu 262240 \\ Adrian Siwak \\  nr albumu 242084}
+	\maketitle
+	\tableofcontents
+
+\section{Krótki opis zagadnienia:}
+\subsection{Informacje o badanch danych:}
+\begin{itemize}
+\item Tabela z danymi na temat preferencji dotyczących stosowanego leku przeciwbólowego $200$ losowo wybranych klientów (w różnym wieku) kilku (losowo wybranych) aptek:
+
+<<tabela1, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+tab1=matrix(c(35,0,0,22,22,0,15,15,15,0,40,10,18,3,5),nrow=5,byrow=TRUE)
+dimnames(tab1) <- list(c("Ibuprom","Apap","Paracetamol","Ibuprofen","Paradol"),c("do lat 35","od 36 do 55","powyżej 55"))
+print(xtable(tab1), table.placement = 'H')
+@
+
+\item Dane na temat zadowolenia z pracy i wynagrodzenia (dwie tabele):
+
+<<tabela2, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+tab2=matrix(c(20,24,80,82,22,38,104,125,13,28,81,113,7,18,54,32),nrow=4,byrow=TRUE)
+dimnames(tab2) <- list(c("do 6000","6000-15000", "15000-25000", "powyżej 25000"),c("b. niezadow.","niezadow.","zadow","b. zadow"))
+print(xtable(tab2), table.placement = 'H')
+@
+
+\item Dane na temat podejścia do segregacji wśród studentów w różnym wieku:
+ 
+<<tabela_z_wykładu, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m1a=matrix(c(888,369,50,457,263,95,10,99,208,29,2,44,78,9,0,19,1,0,0,4),nrow=5,byrow=TRUE)
+dimnames(m1a) <- list(c("18-25","26-35","36-45","46-59","60+"),c("A","B","C","D"))
+print(xtable(m1a), table.placement = 'H')
+@
+
+\end{itemize}
+\subsection{Teoretyczny opis narzedzi uzywanych przy analizie oraz waznych
+terminów teoretycznych}
+
+\begin{itemize}
+\item Hipoteza zerowa \pauza hipoteza dotycząca rozkładu $P_{\vartheta}$ zmiennej losowej $X$, postaci $P_{\vartheta} \in P_{0}$ gdzie $P_{0}$ jest niepustym zbiorem rodziny $P$.
+
+\item Hipoteza alternatywna \pauza definiując $P_{1}=P\setminus P_{0}$ hipoteza alternatywna do hipotezy zerowej to $P_{\vartheta} \in P_{1}$.
+
+\item Poziom istotności $\alpha$ \pauza poziomem istotności testu nazywamy ograniczenie z góry na prawdopodobieństwo błędu $I$\ppauza szego rodzaju (Odrzucenie hipotezy $H_{0}$ gdzy jest ona prawdziwa).
+
+\item Poziom krytyczny (p\ppauza value) \pauza możliwie najmniejszy poziom istotności przy którym należy odrzucić hipotezę $H_{0}$ dla danej realizacji $x$.
+
+\item Test dokładny \pauza jest to test umożliwiający testowanie hipotez dokładnie na poziomie $\alpha$ wyznaczając testy jednostajnie najmocniejsze.
+
+\item Test asymptotyczny \pauza testy dla dużych rozmiarów próby $n$, są oparte na statystykach testowych dla których rozkład asymptotyczny przy założeniu że hipoteza $H_{0}$ jest prawdziwa, jest znany.
+
+\item Moc testu \pauza funkcję 
+\begin{equation}
+\beta_\varphi ( \vartheta ) = E_\vartheta [ \varphi (X) ],\vartheta \in \Theta
+\end{equation}
+nazywamy mocą testu.
+
+\item Test Fischera i rozwinięcie testu fishera na więcej niż dwa wymiary \pauza Test Freemana-Haltona. \pauza rest polega na obliczeniu prawdopodobieństwa warunkowego otrzymania tabeli pod warunkiem że statystyki dostateczne rozkładów brzegowych przyjmują zaovbserwowane wartości. Rozkład warunkowy który nie zawiera parametrów zakłócających (niezanych rozkładów brzegowych) dany jest wzorem 
+\begin{equation}
+\begin{split}
+P_{MULT}(T	\textpipe W_{1}\bot W_{2},Y_{i+}=y_{i+},Y_{+j}=y_{+j},i=1,\dotsb ,R,j+1, \dotsb , C) = \frac{\prod_{i}y_{i+}!\prod_{i}y_{+j}!}{n!\prod_{i,j}y_{ij}!}=:\\ P_{MXH}(T)
+\end{split}
+\end{equation}
+Wartość poziomu krytycznego w teście Freemana-Haltona definiujemy następująco $p=\sum_{T \in S}P_{MXH}(T)$.\\
+Test Fishera jest szczególnym przypadkiem testu Freemana-Haltona dla tabel $2x2$ sprowadza się do postaci 
+\begin{equation}
+\frac{\binom{y_{11}+y_{21}}{y_{11}}\binom{y_{12}+y_{22}}{y_{12}}}{\binom{y}{y_{11}+y_{12}}}
+\end{equation}
+
+\item Test chi\ppauza kwadrat \pauza test chi\ppauza kwadrat jest testem istotności, wykorzystuje statystykę testową
+\begin{equation}
+X^{2}=\sum_{i=1}^{R}\sum_{j=1}^{C}\frac{(n_{ij}-n_{i+}n_{+j}/n)^{2}}{n_{i+}n_{+j}/n}
+\end{equation}
+
+\item Test niezależności oparty na ilorazie wiarygodności \pauza statystyka testowa w teście opartym na ilorazie wiarogodności  w przypadku
+weryfikacji hipotezy $H_{0} : p \in P_{0}$, przy hipotezie alternatywnej $H_{1} : p \in P_{1} = P \ P0$, na
+podstawie realizacji $x$ wektora losowego $X$, jest postaci
+\begin{equation}
+\lambda (x) = \frac{sup_{p \in P_{0}P_{p}(X=x)}}{sup_{p \in P}P_{p}(X=x)} =
+\frac{sup_{p \in P_{0}\prod_{i=1}^{k}p_{i}^{x_{i}}}}{sup_{p \in P\prod_{i=1}^{k}p_{i}^{x_{i}}}}=\frac{sup_{p \in P_{0}\prod_{i=1}^{k}p_{i}^{x_{i}}}}{\prod_{i=1}^{k}(x_{i}/n)^{x_{i}}}
+\end{equation}
+
+\item Do wyznaczania poziomu krytycznego w teście IW (powyższym) korzysta się z twierdzenia \textit{Wilksa}, w przypadku weryfikowanej hipotezy, statystyka $G^{2}$ jest postaci 
+$G^{2}(X)=2\sum_{i=1}^{k}X_{i}ln(X_{i}/n\hat{p_{i}})$ 
+gdzie $\hat{p}=(\hat{p_{1}},\dotsb,\hat{p_{k}})$ jest estymatorem największej wiarygodności gdy hipoteza jest prawdziwa.
+
+\item Współczynnik Tau Godmana\ppauza Kruskala \pauza współczynnik Goodmana i Kruskala jest miarą współzmienności dwóch zmiennych nominalnych,\\
+wyraża się wzorem 
+\begin{equation}
+\tau = \frac{V(W_{2}-E[V(W_{2}|W_{1})])}{V(W_{2})}
+\end{equation}
+Gdzie $V(W_{2}|W_{1}=i)=1-\sum_{j=1}^{C}p_{j|i}^{2}$;\\$p_{j|i}=P(W_{2}=j|W_{1}=i)$
+
+\item Współczynnik V\ppauza Cramera \pauza współczynnik oparty na statystyce $X^{2}$ w teście niezależności chi \ppauza kwadrat Pearsona
+\begin{equation}
+V=\sqrt{\frac{X^{2}}{n min\{ R-1,C-1 \}}}
+\end{equation}
+
+\item Współczynnik T-czuprowa
+\begin{equation}
+T=\sqrt{\frac{X^{2}}{n\sqrt{( R-1)(C-1)}}}
+\end{equation}
+
+\item Współczynnik $\phi$  
+
+\begin{equation}
+\phi=\sqrt{\frac{X^{2}}{n}}
+\end{equation}
+
+\item Współczynnik $\Gamma$ \pauza miara  siły monotoniczego związku dwóch zmiennych jakościowych o uporządkowanych kategoriach.
+Opiera się ona na porównaniu prawdopodobieństw że dwie losowo wybrane jednostki z rozkładu łącznego 
+$\{p_{ij}:i \in\{1,\ldots,R\},j \in \{1,\ldots,C\}\}$ są zgodne z prawdopodobieństwem, że te jednostki nie są zgodne. Oznaczamy odpowiednio obydwa prawdopodobieństwa symbolami
+$\Pi_{c}$ i $\Pi_{d}$. 
+\begin{equation}
+\gamma=\frac{\Pi_{c}-\Pi_{d}}{\Pi_{c}+\Pi_{d}}
+\end{equation}
+\item Analiza Korespondencji \pauza 
+Przyjmijmy,  że liczba możliwych odpowiedzi na pierwsze pytanie ankietowe wynosi R, natomiast na drugie – C.
+Niech  $\textit{Y}=(Y_{11}, \ldots, Y_{1C},\ldots,Y_{R1},\ldots,Y_{RC})$ będzie wektorem losowym liczności.
+Wartości (realizacje) współrzędnych  $Y_{ij}$ wektora losowego  $\textit{Y}$ oznaczamy przez $n_{ij}$ i zawieramy w dwuwymiarowej tabeli
+kontyngencji.
+Dalej przez $p_{ij}, i \in \{1,\ldots,R\},j\in \{1,\ldots,C\}$ będziemy oznaczać zaobserwowane częstości i-tej odpowiedzi na pytanie pierwsze oraz j-tej odpowiedzi na pytanie drugie, tj. $p_{ij} = \frac{n_{ij}}{n}$\\
+
+Macierzą korespondencji $P$ nazywamy macierz częstości zaobserwowanych tj. $P=(p_{ij})_{i=1,\ldots,R,j=1,\ldots,C.}$
+
+Wektorami częstośći brzegowych nazywamy wektory:
+$$r=(\frac{n_{1+}}{n},\ldots,\frac{n_{R+}}{n})^{T}$$
+$$c=(\frac{n_{+1}}{n},\ldots,\frac{n_{+c}}{n})^{T}$$
+Macierzą częstości wierszowych nazywamy macierz $D_{r}=diag(r)$, natomiast macierzą częstości kolumnowych \ppauza macierz $D_{c}=diag(c)$
+
+Macierzą profili wierszowych nazywamy macierz $R=(D_{r})^{-1}P$, natomiast macierzą profili kolumnowych macierz $C=(D_{c})^{-1}P$.
+
+Analiza korespondencji polega na dekompozycji według wartości osobliwych macierzy $A=(D_{r})^{-1/2}(P-rc^{T})(D_{c})^{-1/2}$.
+Macierz $A$ nazywamy macierzą rezyduów standaryzowanych.
+Macierz rezyduów standaryzowanych podlega rozkładowi według wartości osobliwych w następujący sposób $A=U\Gamma V^{T}$ gdzie $\Gamma$ jest macierzą diagonalną o niezerowych wartościach osobliwych $\gamma_{k}$ macierzy $A$ ułożonych w porządku nierosnącym, macierze $U$ i $V$ są macierzami ortogonalnymi $(U^{-1}=U^{T},V^{-1}=V^{T}.)$\\
+Wektory macierzy $U$ nazywane są osiami głównymi kolumn, a wektory macierzy V \ppauza osiami głównymi wierszy.
+Po wyznaczeniu rozkładu macierzy $A$ rezyduów standaryzowanych według wartości osobliwych, możemy wyznaczyć macierze 
+$F=(D_{r})^{-1/2}U\Gamma$ oraz $G=(D_{c})^{-1/2}V\Gamma$ które nazywamy współrzędnymi kategorii cech, odpowiednio dla wierszy oraz kolumn.
+Pierwsze kolumny macierzy $F$ oraz $G$ zawierają odpowiednio pierwsze współrzędne punktów odpowiednio dla kategorii odpowiedzi na pytanie pierwsze (wierszy) oraz kategorii odpowiedzi na pytanie drugie (kolumn).
+Drugie kolumny macierzy $F$ oraz $G$ zawierają drugie współrzędne punktów, itd.
+W przypadku prezentacji dwuwymiarowej wykorzystuje sie dwie pierwsze kolumny macierzy $F$ (dla wierszy) oraz dwie pierwsze kolumny macierzy $G$ (dla kolumn).
+
+Inercją całkowitą nazywamy sumę kwadratów wszystkich wartości osobliwych macierzy $A$ i oznaczamy przez $\lambda$
+$$\lambda = \sum_{i=1}^{K}(\gamma_{k})^{2}$$
+Inercję całkowitą można interpretować jako miarę rozproszenia profili w przestrzeni wielowymiarowej, im jest większa tym punkty są bardziej rozproszone.
+
+\end{itemize}
+\section{Lista 5, 6 i 7}
+\subsection{Zadanie 1}
+Zapoznajemy się z funkcjami \textit{binom.test} oraz \textit{prop.test}:
+<<binom, echo=TRUE,eval=FALSE>>=
+?binom.test
+@
+Funkcja \textit{binom.test} przeprowadza test hipotezy zerowej o prawdopodobieństwie sukcesu w próbie Bernoulliego.\\
+binom.test(x, n, p = 0.5,
+           alternative = c("two.sided", "less", "greater"),
+           conf.level = 0.95)
+Gdzie:
+\begin{itemize}
+\item x \pauza ilość sukcesów, lub wektor długości 2 zawierający ilość sukcesów i porażek,
+\item n \pauza ilość prób,
+\item p \pauza zakładane prawdopodobieństwo sukcesu
+alternative \pauza zmienna wskazuje że hipoteza alternatywna musi być jedną ze wskazanych opcji "two.sided", "greater" lub "less",
+\item conf.level \pauza poziom ufności wzracanego przedziału ufności.
+\end{itemize}
+<<prop, echo=TRUE,eval=FALSE>>=
+?prop.test
+@
+Funkcja \textit{prop.test} może być używana do testowania hipotezy zerowej, że proporcje (prawdopodobieństwa sukcesu) w kilku grupach są takie same lub równają się określonym wartościom. Opcje takie same jak w \textit{binom.test}, jedynie dodajemy opcję \textit{correct}, która mówi czy funkcja ma wykonywać poprawkę na ciągłość.
+\subsection{Zadanie 2}
+Załóżmy, że $200$ losowo wybranych klientów (w różnym wieku) kilku (losowo wybranych) aptek zapytano, jaki lek przeciwbólowy zwykle stosują. Zebrane dane zawarte
+są w tabeli:
+<<zad1a_tabela, echo=FALSE,eval=TRUE,results='asis'>>=
+print(xtable(tab1))
+@
+Na podstawie tych danych, na poziomie istotności $\alpha = 0.05$; zweryfikujemy następujące hipotezy:
+\begin{itemize}
+\item[(a)] prawdopodobieństwo, że losowo wybrana osoba z badanej populacji w przypadku bólu zażywa Apap jest mniejsze bądź równe $1/4$,
+<<zad1a, echo=TRUE,eval=TRUE>>=
+b <- binom.test(44,200,0.25,alternative =  'g')
+b$p.value
+pf <- prop.test(44,200,0.25,alternative =  'g',correct = FALSE)
+pf$p.value
+pt <- prop.test(44,200,0.25,alternative =  'g',correct = TRUE)
+pt$p.value
+@
+Z wyników testu możemy odczytać że wartość poziomu krytycznego jest większa niż $0,05$ a estymowana wartość  mieści się w przedziale ufności, więc nie mamy podstaw by odrzucić hipotezę zerową.
+\item[(b)] prawdopodobieństwo, że losowo wybrana osoba z badanej populacji w przypadku bólu zażywa Apap jest równe $1/2$
+<<zad1b, echo=TRUE, eval=TRUE>>=
+b <- binom.test(44,200,0.5,alternative =  't')
+b$p.value
+pf <- prop.test(44,200,0.5,alternative =  't',correct = FALSE)
+pf$p.value
+pt <- prop.test(44,200,0.5,alternative =  't',correct = TRUE)
+pt$p.value
+@
+Z wyników testu możemy odczytać że wartość poziomu krytycznego jest mniejsza niż 0,05 możemy zatem odrzucić hipotezę zerową.
+\item[(c)] prawdopodobieństwo, że losowo wybrana osoba z badanej populacji w przypadku bólu zażywa Ibuprom jest większe bądź równe $1/5$,
+<<zad1c, echo=TRUE,eval=TRUE>>=
+b <- binom.test(35,200,0.2,alternative =  'l')
+b$p.value
+pf <- prop.test(35,200,0.2,alternative =  'l',correct = FALSE)
+pf$p.value
+pt <- prop.test(35,200,0.2,alternative =  'l',correct = TRUE)
+pt$p.value
+@
+Z wyników testu możemy odczytać że wartość poziomu krytycznego jest większa niż $0,05$ a estymowana wartość  mieści się w przedziale ufności, więc nie mamy podstaw by odrzucić hipotezę zerową.
+\item[(d)] powtórzymy punkty (a), (b) i (c), dla losowo wybranej osoby z badanej populacji do lat $35$.
+<<zad1d, echo=TRUE,eval=TRUE>>=
+
+b <- binom.test(22,90,0.25,alternative =  'g')
+b$p.value
+pf <- prop.test(22,90,0.25,alternative =  'g',correct = FALSE)
+pf$p.value
+pt <- prop.test(22,90,0.25,alternative =  'g',correct = TRUE)
+pt$p.value
+
+b <- binom.test(22,90,0.5,alternative =  't')
+b$p.value
+pf <- prop.test(22,90,0.5,alternative =  't',correct = FALSE)
+pf$p.value
+pt <- prop.test(22,90,0.5,alternative =  't',correct = TRUE)
+pt$p.value
+
+b <- binom.test(35,90,0.2,alternative =  'l')
+b$p.value
+pf <- prop.test(35,90,0.2,alternative =  'l',correct = FALSE)
+pf$p.value
+pt <- prop.test(35,90,0.2,alternative =  'l',correct = TRUE)
+pt$p.value
+@
+Widzimy, że wśród młodych ludzi wartości p-value są analogiczne, możemy odrzucić hipotezę zerową dla podpunktu b, oraz nie mamy podstaw by tego robić dla a i dla c.
+\end{itemize}
+\subsection{Zadanie 3}
+Przeprowadzimy symulacje, których celem jest porównanie mocy testu dokładnego
+i testu asymptotycznego (dla różnych wartości alternatyw), w przypadku weryfikacji
+hipotezy zerowej $H_0 : p = 0.5,$ przy hipotezie alternatywnej $H1 : p \neq 0.5$, na
+poziomie istotności $0.05$, gdzie $p$ jest prawdopdobieństwem sukcesu.
+<<wykres_n=1000, echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+alpha=0.05
+n=1000
+p=0.9
+moc1=c()
+moc3=c()
+moc2=c()
+for (p in seq(from=0, to=1, length.out=100 )){
+  
+  M=1000
+  res1=0
+  res2=0
+  res3=0
+  
+  for(i in 1:M){
+    a<-rbinom(1,n,p)  
+    
+    test1<-prop.test(a,n,0.5,alternative="two.sided",correct=TRUE)
+    res1=res1+(test1$p.value>alpha)
+    
+    test2<-prop.test(a,n,0.5,alternative="two.sided",correct=FALSE)
+    res2=res2+(test2$p.value>alpha)
+    
+    test3<-binom.test(a,n,0.5,alternative="two.sided")
+    res3=res3+(test3$p.value>alpha)
+  }
+  
+  moc1=append(moc1,res1/M)
+  moc2=append(moc2,res2/M)
+  moc3=append(moc3,res3/M)
+}
+seq_p=seq(from=0, to=1, length.out=100 )
+
+
+
+my_colors<-c("blue","red","green")
+plot(seq_p,moc1,col="blue", cex=2,main="n=1000",xlab="p",ylab="moc testu")
+points(seq_p,moc2,col="red")
+points(seq_p,moc3,col="green")
+legend("topleft", inset=.02, title="testy",
+   c("prop.test z korektą","prop.test bez korekty","binom.test"), fill=my_colors, horiz=FALSE, cex=1)
+@
+
+<<wykres_n=100, echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+alpha=0.05
+n=100
+p=0.9
+moc1=c()
+moc3=c()
+moc2=c()
+for (p in seq(from=0, to=1, length.out=100 )){
+  
+  M=1000
+  res1=0
+  res2=0
+  res3=0
+  
+  for(i in 1:M){
+    a<-rbinom(1,n,p)  
+    
+    test1<-prop.test(a,n,0.5,alternative="two.sided",correct=TRUE)
+    res1=res1+(test1$p.value>alpha)
+    
+    test2<-prop.test(a,n,0.5,alternative="two.sided",correct=FALSE)
+    res2=res2+(test2$p.value>alpha)
+    
+    test3<-binom.test(a,n,0.5,alternative="two.sided")
+    res3=res3+(test3$p.value>alpha)
+  }
+  
+  moc1=append(moc1,res1/M)
+  moc2=append(moc2,res2/M)
+  moc3=append(moc3,res3/M)
+}
+seq_p=seq(from=0, to=1, length.out=100 )
+
+
+
+my_colors<-c("blue","red","green")
+plot(seq_p,moc1,col="blue", cex=2,main="n=100",xlab="p",ylab="moc testu")
+points(seq_p,moc2,col="red")
+points(seq_p,moc3,col="green")
+legend("topleft", inset=.02, title="testy",
+   c("prop.test z korektą","prop.test bez korekty","binom.test"), fill=my_colors, horiz=FALSE, cex=1)
+@
+
+<<wykres_n=50, echo=FALSE,eval=TRUE, warning=FALSE,results='asis'>>=
+
+alpha=0.05
+n=100
+p=0.9
+moc1=c()
+moc3=c()
+moc2=c()
+for (p in seq(from=0, to=1, length.out=100 )){
+  
+  M=1000
+  res1=0
+  res2=0
+  res3=0
+  
+  for(i in 1:M){
+    a<-rbinom(1,n,p)  
+    
+    test1<-prop.test(a,n,0.5,alternative="two.sided",correct=TRUE)
+    res1=res1+(test1$p.value>alpha)
+    
+    test2<-prop.test(a,n,0.5,alternative="two.sided",correct=FALSE)
+    res2=res2+(test2$p.value>alpha)
+    
+    test3<-binom.test(a,n,0.5,alternative="two.sided")
+    res3=res3+(test3$p.value>alpha)
+  }
+  
+  moc1=append(moc1,res1/M)
+  moc2=append(moc2,res2/M)
+  moc3=append(moc3,res3/M)
+}
+seq_p=seq(from=0, to=1, length.out=100 )
+
+
+
+my_colors<-c("blue","red","green")
+plot(seq_p,moc1,col="blue", cex=2,main="n=50",xlab="p",ylab="moc testu")
+points(seq_p,moc2,col="red")
+points(seq_p,moc3,col="green")
+legend("topleft", inset=.02, title="testy",
+   c("prop.test z korektą","prop.test bez korekty","binom.test"), fill=my_colors, horiz=FALSE, cex=1)
+@
+
+Z powyższych wykresów możemy wywnioskować, że moc testu zmniejsza się wraz z rozmiarem próby.
+Najmniejszą moc wykazywała funkcja prop.test bez korekty na liniowość, moc z korektą i moc binom.test są do siebie zbliżone.
+
+
+\subsection{Zadanie 4}
+Na podstawie danych w tablicy 1, korzystając z testu Fishera, na poziomie istot-
+ności $\alpha = 0.05$, zweryfikujemy hipotezę, że prawdopodobieństwo, że osoba do lat
+$35$ zażywa Panadol jest równe prawdopodobieństwu, że osoba od $36$ lat do $55$ lat
+zażywa Panadol.
+<<zad4, echo=TRUE,eval=TRUE>>=
+dane <- matrix(c(18,72,3,77),nrow = 2, ncol = 2)
+fisher.test(dane)
+@
+Z powyższego testu wynika że wartość poziomu krytycznego jest mniejsza niż 0.05 więc zmienne są zależne zatem możemy odrzucić hipotezę zerową, że prawdopodobieństwo, że osoba do lat
+$35$ zażywa Panadol jest równe prawdopodobieństwu, że osoba od $36$ lat do $55$ lat
+zażywa Panadol.
+
+\subsection{Zadanie 5}
+Na podstawie danych z tabeli:
+<<tabela2_Dalej, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(xtable(tab2), table.placement = 'H')
+@
+Na poziomie istotności $0.05$, zweryfikujemy hipotezę o niezależności zmiennych
+\textit{stopień zadowolenia z pracy} i \textit{Wynagrodzenie}
+<<zad5_2, echo=TRUE,eval=TRUE>>=
+chisq.test(tab2)
+@
+$p.value = 0.214 > 0.05$ czyli przyjmujemy hipotezę zerową, oraz zmienne są niezależne
+
+\subsection{Zadanie 6}
+Napiszemy deklarację funkcji, która dla danych w tablicy dwudzielczej oblicza wartość
+poziomu krytycznego ($p$-value) w asymptotycznym teście niezależności opartym na
+ilorazie wiarogodności.
+
+<<pvalue_function, echo=TRUE,eval=TRUE>>=
+pvalue_function = function(dane){
+  elementy = c()
+  for(i in 1:ncol(dane)){
+    for(j in 1:nrow(dane)){
+      new_el = (sum(dane[i,])*sum(dane[,j])/(sum(dane)*dane[i,j]))^dane[i,j] 
+      elementy = append(elementy, new_el)
+    }
+  }
+  iloczyn = prod(elementy)
+  G2 = -2*log(iloczyn)
+  pvalue <- pchisq(G2, df = (nrow(dane) - 1)*(ncol(dane) - 1),lower.tail = FALSE)
+  pvalue
+}
+ 
+my_matrix <- matrix(c(20,22,13,7,24,38,28,18,80,104,81,54,82,125,113,92), nrow = 4, ncol = 4) 
+pvalue_function(my_matrix)
+chisq.test(my_matrix)$p.value
+
+pvalue_function(tab2)
+chisq.test(tab2)$p.value
+
+@
+
+Widzimy, że wartość p-value dla podanych macierzy są bardzo podobne do tego,co wychodzi dla funkcji wbudowanej, czyli funkcja jest poprawnie zdefiniowana. 
+\section{Lista 89}
+\subsection{Zadanie 1 \pauza część I}
+obliczymy wartości odpowiednich miar współzmienności zmiennych \textit{Segregacja} (odpowiedź na pytanie dotyczace segregacji śmieci) i \textit{Wiek}
+<<tabela_z_wykładu2, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(xtable(m1a), table.placement = 'H')
+@
+oraz \textit{Segregacja} i \textit{Miejsce zamieszkania}.
+<<tabela_z_wykładu_druga, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m2a <- matrix(c(505,202,19,136,240,77,14,88,181,63,8,105,512,159,21,294)
+                 ,nrow=4,byrow=TRUE)
+colnames(m2a) <- c("A","B","C","D")
+rownames(m2a) <- c("Wieś","Miasto do 20 tys.", "Miasto 20-50 tys."
+                      ,"Miasto pow. 50 tys.")
+print(xtable(m2a), table.placement = 'H')
+@
+W przypadku zmiennej \textit{Wiek}, wartości miar obliczymy przy “wyjściowych” kategoriach wiekowych, jak również przy połączonych kategoriach wiekowych (jak w przykładzie):
+<<tabela_z_wykładu_zmieniona, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+m1a_new=matrix(c(888,369,50,457,263,95,10,99,208,29,2,44,79,9,0,13),nrow=4,byrow=TRUE)
+dimnames(m1a_new) <- list(c("18-25","26-35","36-45","46+"),c("A","B","C","D"))
+print(xtable(m1a_new), table.placement = 'H')
+@
+Obliczymy dane miary współzmienności:
+\begin{itemize}
+\item współczynnik T Godmana-Kruskala
+<<T-GK, echo=TRUE,eval=TRUE>>=
+TDK = function(dane){
+  elementy1 = c()
+  elementy2 = c()
+  for(i in 1:nrow(dane)){
+    for(j in 1:ncol(dane)){
+      el1 = (dane[i,j]^2) / (sum(dane)*sum(dane[i,]))
+      elementy1 = append(elementy1, el1)
+    }
+  }
+  a = sum(elementy1)
+  for(j in 1:ncol(dane)){
+    el2 = (sum(dane[,j])/sum(dane))^2
+    elementy2 = append(elementy2, el2)
+  }
+  b = sum(elementy2)
+  (a-b)/(1-b)
+}
+TDK(m1a)
+#Wbudowany
+GoodmanKruskalTau(m1a, direction = "column")
+
+TDK(m2a)
+#Wbudowany
+GoodmanKruskalTau(m2a, direction = "column")
+
+TDK(m1a_new)
+#Wbudowany
+GoodmanKruskalTau(m1a_new, direction = "column")
+@
+\item Współczynnik V \pauza Cramera
+<<Cramer, echo=TRUE,eval=TRUE>>=
+VC = function(dane){
+  q <- as.numeric(chisq.test(dane)$statistic)
+  minimum <- min(c(ncol(dane) - 1,nrow(dane) - 1))
+  V = sqrt((q)/(sum(dane)*minimum))
+  return(V)
+  }
+VC(m1a)
+#Wbudowany
+CramerV(m1a)
+
+VC(m2a)
+#Wbudowany
+CramerV(m2a)
+
+VC(m1a_new)
+#Wbudowany
+CramerV(m1a_new)
+@
+\item współczynnik T-Czuprowa
+<<Czuprow, echo=TRUE,eval=TRUE>>=
+T.Czuprow <-function(dane){
+  q <- as.numeric(chisq.test(dane)$statistic)
+  return(sqrt(q/(sum(dane)*sqrt((ncol(dane)-1)*(nrow(dane)-1)))))
+}
+T.Czuprow(m1a)
+#Wbudowany
+TschuprowT(m1a)
+
+T.Czuprow(m2a)
+TschuprowT(m2a)
+
+T.Czuprow(m1a_new)
+TschuprowT(m1a_new)
+
+@
+\item współczynnik $\phi$
+<<phi, echo=TRUE,eval=TRUE>>=
+phi<-function(dane){
+  q <- as.numeric(chisq.test(dane)$statistic)
+  return(sqrt(q/sum(dane)))
+}
+phi(m1a)
+#Wbudowany
+Phi(m1a)
+
+phi(m2a)
+#Wbudowany
+Phi(m2a)
+
+phi(m1a_new)
+#Wbudowany
+Phi(m1a_new)
+@
+\item współczynnik C-Pearsona
+<<CP, echo=TRUE,eval=TRUE>>=
+C<-function(dane){
+  q <- as.numeric(chisq.test(dane)$statistic)
+  return(sqrt(q/(q+sum(dane))))
+}
+C(m1a)
+ContCoef(m1a)
+
+C(m2a)
+ContCoef(m2a)
+
+C(m1a_new)
+ContCoef(m1a_new)
+@
+\end{itemize}
+Widzimy, że funkcje zostały wykonane poprawnie, gdyż zwracają taki sam wynik, jak funkcje wbudowane. Niska wartość danych współczynników oznacza, że grupy lub klastry w danych są silnie ze sobą skorelowane lub skupione.
+\subsection{Zadanie 1 \pauza część II}
+Przeprowadzimy analizę korespondencji, czyli obliczymy wartości odpowiednich macierzy, współrzędnych punktów oraz utworzyć odpowiednie wykresy.
+<<AC, echo=TRUE,eval=TRUE>>=
+#ANALIZA KORESPONDENCJI
+
+macierz.korespondencji <- function(matrix){
+  matrix/sum(matrix)
+}
+
+przeciętne.profile.c <- function(matrix){
+  c<-colSums(matrix)/sum(matrix)
+}
+
+przeciętne.profile.r <- function(matrix){
+  r<-rowSums(matrix)/sum(matrix)
+}
+
+M.częstości.wierszowych.D.r <- function(r){
+  D.r<-diag(r^(-1/2))
+  
+}
+
+M.częstości.kolumnowych.D.c <- function(c){
+  D.c<-diag(c^(-1/2))
+  
+}
+
+M.rez.A<-function(D.r,D.c,c,r,P){
+  (D.r)%*%(P-r%*%t(c))%*%(D.c)
+}
+
+SVD.A<-function(A){
+  svd(A)
+}
+
+współrzędne.korelacji.F<-function(s,D.r){
+  D.r%*%s$u%*%diag(s$d)
+}
+współrzędne.korelacji.G<-function(s,D.c){
+  D.c%*%s$v%*%diag(s$d)
+}
+
+
+
+analiza.korespondencji<-function(matrix){
+P<-macierz.korespondencji(matrix)
+c<-przeciętne.profile.c(matrix)
+r<-przeciętne.profile.r(matrix)
+D.r<-M.częstości.wierszowych.D.r(r)
+D.c<-M.częstości.kolumnowych.D.c(c)
+A<-M.rez.A(D.r,D.c,c,r,P)
+s<-SVD.A(A)
+F<-współrzędne.korelacji.F(s,D.r)
+G<-współrzędne.korelacji.G(s,D.c)
+
+etykiety.F<-rownames(matrix)
+etykiety.G<-colnames(matrix)
+
+plot(-1.5:1.5, -1.5:1.5, type = "n")  # setting up coord. system
+points(F[,1],F[,2],col="blue")
+
+points(G[,1],G[,2],col="red")
+
+abline(v = 0, h=0, col = c("black", "black"),
+       lty = c(2, 2), lwd = c(1, 1))
+text(F[,1], F[,2], labels=etykiety.F,cex =0.5 ,adj=0,offset = 0.5,pos=1)
+text(G[,1], G[,2], labels=etykiety.G,cex =0.5,adj=0,offset = 0.5,pos=1)
+}
+
+#2
+#INERCJA CAŁKOWITA
+
+inercja.całkowita<-function(matrix){
+  P<-macierz.korespondencji(matrix)
+  c<-przeciętne.profile.c(matrix)
+  r<-przeciętne.profile.r(matrix)
+  D.r<-M.częstości.wierszowych.D.r(r)
+  D.c<-M.częstości.kolumnowych.D.c(c)
+  A<-M.rez.A(D.r,D.c,c,r,P)
+  s<-SVD.A(A)
+  sum(s$d^2)
+  }
+
+#3
+#PROCENT ZMIENNOŚCI
+
+procent.zmienności<-function(matrix){
+  P<-macierz.korespondencji(matrix)
+  c<-przeciętne.profile.c(matrix)
+  r<-przeciętne.profile.r(matrix)
+  D.r<-M.częstości.wierszowych.D.r(r)
+  D.c<-M.częstości.kolumnowych.D.c(c)
+  A<-M.rez.A(D.r,D.c,c,r,P)
+  s<-SVD.A(A)
+  lambda<-sum(s$d^2)
+  c(s$d[1]/lambda,s$d[2]/lambda)
+}
+@
+
+Wykres na podstawie zaimplementowanej przez nas funkcji:
+<<CA_wykres1, echo=TRUE,eval=TRUE,results='asis',fig.height=6,fig.wight=12>>=
+analiza.korespondencji(m2a)
+@
+
+Wykres na podstawie funkcji 'ca':
+<<CA_wykres2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+plot(ca(m2a))
+@
+
+Wartość inercji całkowitej zaimplementowanej przez nas funkcji:
+<<CA_inercja1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+inercja.całkowita(m2a)
+@
+
+Wartość inercji całkowitej obliczona na podstawie funkcji 'ca':
+<<CA_inercja2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(sum(ca(m2a)$sv^2))
+@
+
+Procent zmienności na podstawie zaimplementowanej przez nas funkcji:
+<<CA_procent1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+procent.zmienności(m2a)
+@
+
+Procent zmienności obliczony na podstawie funkcji 'ca':
+<<CA_procent2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+sv<-ca(m2a)$sv
+lambda<-sum(sv^2)
+print(c(sv[1]/lambda,sv[2]/lambda))
+@
+
+Na podstawie powyższych wyników możemy wywnioskować poprawność implementacji.
+
+\subsection{Zadanie 2}
+Na podstawie danych z tabeli: 
+<<tabela_do_zad2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+tab3=matrix(c(30,3,2,22,22,0,15,15,15,0,40,10,18,3,5),nrow=5,byrow=TRUE)
+dimnames(tab3) <- list(c("Ibuprom","Apap","Paracetamol","Ibuprofen","Paradol"),c("do lat 35","od 36 do 55","powyżej 55"))
+print(xtable(tab3), table.placement = 'H')
+@
+obliczymy odpowiednie miary współzmienności oraz przeprowadzimy analizę korespondencji:
+\begin{itemize}
+\item miary współzmienności:
+<<zad2_miaryw, echo=TRUE,eval=TRUE>>=
+C(tab3)
+phi(tab3)
+T.Czuprow(tab3)
+VC(tab3)
+@
+Wysoka wartość danych współczynników oznacza, że grupy lub klastry w danych nie są
+silnie ze sobą skorelowane lub skupione.
+\item analiza korespondencji:
+
+Wykres na podstawie zaimplementowanej przez nas funkcji:
+<<2CA_wykres1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+analiza.korespondencji(tab3)
+@
+
+Wykres na podstawie funkcji 'ca':
+<<2CA_wykres2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+plot(ca(tab3))
+@
+
+Wartość inercji całkowitej zaimplementowanej przez nas funkcji:
+<<2CA_inercja1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+inercja.całkowita(tab3)
+@
+
+Wartość inercji całkowitej obliczona na podstawie funkcji 'ca':
+<<2CA_inercja2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(sum(ca(tab3)$sv^2))
+@
+
+Procent zmienności na podstawie zaimplementowanej przez nas funkcji:
+<<2CA_procent1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+procent.zmienności(tab3)
+@
+
+Procent zmienności obliczony na podstawie funkcji 'ca':
+<<2CA_procent2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+sv<-ca(tab3)$sv
+lambda<-sum(sv^2)
+print(c(sv[1]/lambda,sv[2]/lambda))
+@
+
+\end{itemize}
+\subsection{Zadanie 3}
+Na podstawie danych zawartych w tabeli:
+<<tabela_do_zad3, echo=FALSE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+tab4=matrix(c(32,44,60,70,22,38,104,125,13,48,61,113,4,19,52,96),nrow=4,byrow=TRUE)
+dimnames(tab4) <- list(c("do 6000","6000-15000", "15000-25000", "powyżej 25000"),c("b. niezadow.","niezadow.","zadow","b. zadow"))
+print(xtable(tab4), table.placement = 'H')
+@
+obliczyć (odpowiednią) miarę współzmienności zmiennych \textit{Wynagrodzenie} i \textit{Stopień zadowolenia z pracy}:
+<<zad3_miaryw, echo=TRUE,eval=TRUE>>=
+GoodmanKruskalGamma(tab4)
+@
+Niska wartość współczynnika Goodmana Kruskala Gamma oznacza, że grupy lub klastry w danych są silnie ze sobą skorelowane lub skupione.
+
+Przeprowadzimy analizę korespondencji:
+
+Wykres na podstawie zaimplementowanej przez nas funkcji:
+<<3CA_wykres1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+analiza.korespondencji(tab4)
+@
+
+Wykres na podstawie funkcji 'ca':
+<<3CA_wykres2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+plot(ca(tab4))
+@
+
+Wartość inercji całkowitej zaimplementowanej przez nas funkcji:
+<<3CA_inercja1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+inercja.całkowita(tab4)
+@
+
+Wartość inercji całkowitej obliczona na podstawie funkcji 'ca':
+<<3CA_inercja2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+print(sum(ca(tab4)$sv^2))
+@
+
+Procent zmienności na podstawie zaimplementowanej przez nas funkcji:
+<<3CA_procent1, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+procent.zmienności(tab4)
+@
+
+Procent zmienności obliczony na podstawie funkcji 'ca':
+<<3CA_procent2, echo=TRUE,eval=TRUE,results='asis',fig.height=4,fig.wight=10>>=
+sv<-ca(tab4)$sv
+lambda<-sum(sv^2)
+print(c(sv[1]/lambda,sv[2]/lambda))
+@
+
+\end{document}
